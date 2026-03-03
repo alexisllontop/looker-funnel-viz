@@ -2,22 +2,15 @@
   "name": "Funnel Chart with Labels",
   "organization": "Custom",
   "description": "Funnel chart with stage names inside each segment",
-  "logoUrl": "",
-  "organizationUrl": "",
-  "supportUrl": "",
-  "privacyPolicyUrl": "",
-  "termsOfServiceUrl": "",
-  "packageUrl": "",
   "devMode": true,
   "components": [
     {
       "id": "funnelChart",
       "name": "Funnel Chart",
       "description": "5-stage funnel with text inside segments",
-      "iconUrl": "",
       "resource": {
-        "js": "funnel.js",
-        "config": "funnel.json"
+        "js": "https://alexisllontop.github.io/looker-funnel-viz/funnel.js",
+        "config": "https://alexisllontop.github.io/looker-funnel-viz/funnel.json"
       }
     }
   ]
