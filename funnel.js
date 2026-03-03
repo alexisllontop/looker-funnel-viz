@@ -1,167 +1,156 @@
-// Looker Studio Community Visualization
-// Flat trapezoid funnel — InboundCycle style
-// Individual color per segment, multiline text, rounded corners, no font shrinking
+(function () {
 
-const dscc = require('@google/dscc');
-const d3 = require('d3');
+  var TOP_FRAC = 0.92;
+  var BOT_FRAC = 0.38;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Interpolate a color between two hex values given a ratio 0–1
- */
-function interpolateColor(colorTop, colorBottom, ratio) {
-  const parse = (hex) => {
-    const c = hex.replace('#', '');
-    return [
-      parseInt(c.substring(0, 2), 16),
-      parseInt(c.substring(2, 4), 16),
-      parseInt(c.substring(4, 6), 16),
-    ];
-  };
-  const toHex = (n) => Math.round(n).toString(16).padStart(2, '0');
-  const [r1, g1, b1] = parse(colorTop);
-  const [r2, g2, b2] = parse(colorBottom);
-  return `#${toHex(r1 + (r2 - r1) * ratio)}${toHex(g1 + (g2 - g1) * ratio)}${toHex(b1 + (b2 - b1) * ratio)}`;
-}
-
-/**
- * Build a trapezoid SVG path given the top-left x, top width, top y, height, and bottom width.
- * The trapezoid is centred horizontally within the available width.
- */
-function trapezoidPath(cx, topW, topY, h, bottomW) {
-  const topLeft  = cx - topW / 2;
-  const topRight = cx + topW / 2;
-  const botLeft  = cx - bottomW / 2;
-  const botRight = cx + bottomW / 2;
-  const botY     = topY + h;
-  return `M${topLeft},${topY} L${topRight},${topY} L${botRight},${botY} L${botLeft},${botY} Z`;
-}
-
-// ---------------------------------------------------------------------------
-// Main draw function
-// ---------------------------------------------------------------------------
-
-function drawViz(data) {
-  // ── Clear previous render ──────────────────────────────────────────────
-  const container = document.getElementById('container') || document.body;
-  container.innerHTML = '';
-
-  // ── Style options ──────────────────────────────────────────────────────
-  const style       = data.style;
-  const colorTop    = (style.colorTop    && style.colorTop.value)    ? style.colorTop.value    : '#1a3a5c';
-  const colorBottom = (style.colorBottom && style.colorBottom.value) ? style.colorBottom.value : '#2196F3';
-  const fontColor   = (style.fontColor   && style.fontColor.value)   ? style.fontColor.value   : '#ffffff';
-  const fontSize    = (style.fontSize    && style.fontSize.value)    ? parseInt(style.fontSize.value) : 14;
-  const showValues  = (style.showValues  && style.showValues.value)  ? style.showValues.value  : false;
-
-  // ── Data rows ─────────────────────────────────────────────────────────
-  const rows = data.tables.DEFAULT;
-  if (!rows || rows.length === 0) {
-    container.innerHTML = '<p style="font-family:sans-serif;color:#666;padding:16px;">Sin datos</p>';
-    return;
+  function getProfile(n, availW) {
+    return Array.from({ length: n }, function (_, i) {
+      return {
+        topW: availW * (TOP_FRAC - (TOP_FRAC - BOT_FRAC) * (i / n)),
+        botW: availW * (TOP_FRAC - (TOP_FRAC - BOT_FRAC) * ((i + 1) / n))
+      };
+    });
   }
 
-  const stages = rows.map((row) => ({
-    label: row.dimension[0],
-    value: row.metric[0],
-  }));
+  function trapPath(cx, topW, topY, h, botW) {
+    var tl = cx - topW / 2, tr = cx + topW / 2;
+    var bl = cx - botW / 2, br = cx + botW / 2;
+    var by = topY + h;
+    return 'M' + tl + ',' + topY +
+           ' L' + tr + ',' + topY +
+           ' L' + br + ',' + by +
+           ' L' + bl + ',' + by + ' Z';
+  }
 
-  const n = stages.length; // up to 5
+  function wordWrap(svgEl, text, maxWidth, fontSize, fontFamily) {
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var tmp = document.createElementNS(svgNS, 'text');
+    tmp.setAttribute('font-size', fontSize + 'px');
+    tmp.setAttribute('font-family', fontFamily);
+    tmp.style.visibility = 'hidden';
+    svgEl.appendChild(tmp);
 
-  // ── Canvas dimensions ─────────────────────────────────────────────────
-  const W = container.offsetWidth  || 400;
-  const H = container.offsetHeight || 400;
-
-  const paddingX    = 20;
-  const paddingTop  = 16;
-  const paddingBot  = 16;
-  const gap         = 4;          // px gap between segments
-  const totalH      = H - paddingTop - paddingBot;
-  const segH        = (totalH - gap * (n - 1)) / n;
-
-  // Funnel shape: top width fraction and bottom width fraction of W
-  const topFrac = 0.90;
-  const botFrac = 0.25;
-
-  const availW = W - paddingX * 2;
-  const cx     = W / 2;
-
-  // ── SVG ───────────────────────────────────────────────────────────────
-  const svg = d3.select(container)
-    .append('svg')
-    .attr('width',  W)
-    .attr('height', H)
-    .style('display', 'block');
-
-  stages.forEach((stage, i) => {
-    const ratio      = n === 1 ? 0.5 : i / (n - 1);
-    const ratioNext  = n === 1 ? 0.5 : (i + 1) / (n - 1);
-    const color      = interpolateColor(colorTop, colorBottom, ratio);
-
-    // Width of top and bottom edges of this trapezoid
-    const topFracI  = topFrac - (topFrac - botFrac) * ratio;
-    const botFracI  = topFrac - (topFrac - botFrac) * Math.min(ratioNext, 1);
-    const topW      = availW * topFracI;
-    const bottomW   = availW * botFracI;
-
-    const topY = paddingTop + i * (segH + gap);
-
-    // Draw trapezoid
-    svg.append('path')
-      .attr('d', trapezoidPath(cx, topW, topY, segH, bottomW))
-      .attr('fill', color)
-      .attr('stroke', 'white')
-      .attr('stroke-width', 1.5);
-
-    // ── Label inside the segment ────────────────────────────────────────
-    const midY       = topY + segH / 2;
-    const midW       = (topW + bottomW) / 2;   // available width at midpoint
-    const labelPadX  = 12;
-    const maxLabelW  = midW - labelPadX * 2;
-
-    const textGroup = svg.append('g');
-
-    // Stage name
-    const nameText = textGroup.append('text')
-      .attr('x', cx)
-      .attr('y', midY)
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', showValues ? 'auto' : 'middle')
-      .attr('fill', fontColor)
-      .attr('font-size', `${fontSize}px`)
-      .attr('font-family', 'Google Sans, Roboto, Arial, sans-serif')
-      .attr('font-weight', '600')
-      .text(stage.label);
-
-    // Dynamically scale text to fit inside trapezoid
-    try {
-      const bbox = nameText.node().getBBox();
-      if (bbox.width > maxLabelW && bbox.width > 0) {
-        const scale = maxLabelW / bbox.width;
-        nameText.attr('font-size', `${Math.max(8, Math.floor(fontSize * scale))}px`);
-      }
-    } catch (e) { /* getBBox may fail in some environments */ }
-
-    // Optionally show value beneath the label
-    if (showValues && stage.value !== undefined && stage.value !== null) {
-      textGroup.append('text')
-        .attr('x', cx)
-        .attr('y', midY + fontSize + 2)
-        .attr('text-anchor', 'middle')
-        .attr('dominant-baseline', 'hanging')
-        .attr('fill', fontColor)
-        .attr('font-size', `${Math.max(10, fontSize - 2)}px`)
-        .attr('font-family', 'Google Sans, Roboto, Arial, sans-serif')
-        .attr('opacity', 0.85)
-        .text(typeof stage.value === 'number'
-          ? stage.value.toLocaleString()
-          : stage.value);
+    function measure(s) {
+      tmp.textContent = s;
+      try { return tmp.getBBox().width; } catch (e) { return s.length * fontSize * 0.58; }
     }
-  });
-}
 
-// ── Register with Looker Studio ──────────────────────────────────────────
-dscc.subscribeToData(drawViz, { transform: dscc.objectTransform });
+    var words = text.split(/\s+/);
+    var lines = [], line = [];
+    words.forEach(function (w) {
+      var test = line.concat(w).join(' ');
+      if (measure(test) > maxWidth && line.length > 0) {
+        lines.push(line.join(' '));
+        line = [w];
+      } else {
+        line.push(w);
+      }
+    });
+    if (line.length) lines.push(line.join(' '));
+    svgEl.removeChild(tmp);
+    return lines;
+  }
+
+  var DEFAULT_COLORS = ['#F5C842', '#F0934A', '#C4748C', '#7A6FAB', '#5B9BD5'];
+
+  function drawViz(data) {
+    var container = document.getElementById('container') || document.body;
+    container.innerHTML = '';
+
+    var style = data.style || {};
+    var fontColor  = (style.fontColor  && style.fontColor.value)  ? style.fontColor.value  : '#ffffff';
+    var fontSize   = (style.fontSize   && style.fontSize.value)   ? parseInt(style.fontSize.value) : 15;
+    var showValues = (style.showValues && style.showValues.value) ? style.showValues.value : false;
+    var gap = 6;
+
+    var segColors = DEFAULT_COLORS.map(function (def, i) {
+      var key = 'color' + i;
+      return (style[key] && style[key].value) ? style[key].value : def;
+    });
+
+    var rows = (data.tables && data.tables.DEFAULT) ? data.tables.DEFAULT : [];
+    if (!rows.length) {
+      container.innerHTML = '<p style="padding:16px;font-family:Arial,sans-serif;color:#666">Asigna una dimension y una metrica.</p>';
+      return;
+    }
+
+    var stages = rows.slice(0, 5).map(function (row) {
+      return {
+        label: String(row.dimension && row.dimension[0] ? row.dimension[0] : ''),
+        value: (row.metric && row.metric[0] !== undefined) ? row.metric[0] : null
+      };
+    });
+
+    var n  = stages.length;
+    var W  = container.offsetWidth  || 300;
+    var H  = container.offsetHeight || 400;
+    var cx = W / 2;
+    var padX = 10, padTop = 10, padBot = 10;
+    var availW = W - padX * 2;
+    var segH   = (H - padTop - padBot - gap * (n - 1)) / n;
+    var profile = getProfile(n, availW);
+    var fontFamily = 'Arial, sans-serif';
+    var lineH = fontSize * 1.35;
+    var svgNS = 'http://www.w3.org/2000/svg';
+
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width',  W);
+    svg.setAttribute('height', H);
+    svg.style.display = 'block';
+    container.appendChild(svg);
+
+    stages.forEach(function (stage, i) {
+      var p    = profile[i];
+      var topY = padTop + i * (segH + gap);
+      var midW = (p.topW + p.botW) / 2;
+      var midY = topY + segH / 2;
+
+      var path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', trapPath(cx, p.topW, topY, segH, p.botW));
+      path.setAttribute('fill', segColors[i]);
+      svg.appendChild(path);
+
+      var textMaxW = midW - 28;
+      var lines = wordWrap(svg, stage.label, textMaxW, fontSize, fontFamily);
+      var extraH = (showValues && stage.value !== null) ? lineH : 0;
+      var totalTxtH = lines.length * lineH + extraH;
+      var startY = midY - totalTxtH / 2 + lineH / 2;
+      var minY = topY + 4 + lineH / 2;
+      var maxY = topY + segH - 4 - (lines.length - 1) * lineH - lineH / 2;
+      if (startY < minY) startY = minY;
+      if (startY > maxY) startY = maxY;
+
+      lines.forEach(function (ln, li) {
+        var t = document.createElementNS(svgNS, 'text');
+        t.setAttribute('x', cx);
+        t.setAttribute('y', startY + li * lineH);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('dominant-baseline', 'middle');
+        t.setAttribute('fill', fontColor);
+        t.setAttribute('font-size', fontSize + 'px');
+        t.setAttribute('font-family', fontFamily);
+        t.setAttribute('font-weight', '600');
+        t.textContent = ln;
+        svg.appendChild(t);
+      });
+
+      if (showValues && stage.value !== null) {
+        var vt = document.createElementNS(svgNS, 'text');
+        vt.setAttribute('x', cx);
+        vt.setAttribute('y', startY + lines.length * lineH);
+        vt.setAttribute('text-anchor', 'middle');
+        vt.setAttribute('dominant-baseline', 'middle');
+        vt.setAttribute('fill', fontColor);
+        vt.setAttribute('font-size', Math.max(9, fontSize - 3) + 'px');
+        vt.setAttribute('font-family', fontFamily);
+        vt.setAttribute('font-weight', '400');
+        vt.setAttribute('opacity', '0.82');
+        vt.textContent = (typeof stage.value === 'number') ? stage.value.toLocaleString() : stage.value;
+        svg.appendChild(vt);
+      }
+    });
+  }
+
+  dscc.subscribeToData(drawViz, { transform: dscc.objectTransform });
+
+}());
