@@ -1,0 +1,60 @@
+{
+  "data": [
+    {
+      "id": "concepts",
+      "label": "Datos del Embudo",
+      "elements": [
+        {
+          "id": "dimension",
+          "label": "Etapa (nombre)",
+          "type": "DIMENSION",
+          "options": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        {
+          "id": "metric",
+          "label": "Valor",
+          "type": "METRIC",
+          "options": {
+            "min": 1,
+            "max": 1
+          }
+        }
+      ]
+    }
+  ],
+  "style": [
+    {
+      "id": "colorTop",
+      "label": "Color - Etapa 1 (top)",
+      "type": "SELECT_COLOR",
+      "defaultValue": "#1a3a5c"
+    },
+    {
+      "id": "colorBottom",
+      "label": "Color - Etapa 5 (bottom)",
+      "type": "SELECT_COLOR",
+      "defaultValue": "#2196F3"
+    },
+    {
+      "id": "fontColor",
+      "label": "Color del texto",
+      "type": "SELECT_COLOR",
+      "defaultValue": "#ffffff"
+    },
+    {
+      "id": "fontSize",
+      "label": "Tamano de fuente",
+      "type": "FONT_SIZE",
+      "defaultValue": "14"
+    },
+    {
+      "id": "showValues",
+      "label": "Mostrar valores",
+      "type": "CHECKBOX",
+      "defaultValue": "false"
+    }
+  ]
+}
